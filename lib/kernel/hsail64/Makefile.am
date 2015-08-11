@@ -1,8 +1,6 @@
-# Process this file with automake to produce Makefile.in (in this,
-# and all subdirectories).
-# Makefile.am for pocl/lib/kernel.
+# Process this file with automake to produce Makefile.in
 #
-# Copyright (c) 2011 Universidad Rey Juan Carlos
+# Copyright (c) 2015 Pekka Jääskeläinen
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -22,28 +20,18 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-SUBDIRS = @OCL_TARGETS@
+KERNEL_TARGET = hsail64
 
-# The source files in this dir are not built directly
-# but are used with the target specific subdirs as
-# fallback implementations. Include them in the
-# dist once here.
-EXTRA_DIST = $(srcdir)/*.c $(srcdir)/*.cl $(srcdir)/*.h $(srcdir)/*.ll			\
-	$(srcdir)/vecmathlib/LICENCE			\
-	$(srcdir)/vecmathlib/README			\
-	$(srcdir)/vecmathlib/*.h				\
-	$(srcdir)/vecmathlib-pocl/*.cc			\
-	$(srcdir)/vecmathlib-pocl/*.cl			\
-	$(srcdir)/vecmathlib-pocl/*.h			\
-	$(srcdir)/vecmathlib-pocl/*.py  \
-	$(srcdir)/cellspu/* \
-	$(srcdir)/tce/* \
-	CMakeLists.txt
+# Use TARGET flags:
+CLANG_FLAGS = @TARGET_CLANG_FLAGS@ -Xclang -ffake-address-space-map -emit-llvm -target ${KERNEL_TARGET}
+LLC_FLAGS   = @TARGET_LLC_FLAGS@
+LD_FLAGS    = @TARGET_LD_FLAGS@
 
+include ../rules.mk
+include ../sources.mk
 
-# Distclean the dirs regardless if the target was enabled or not
-# to cleanup the Makefiles.
-distclean-local:
-	for dir in host tce cellspu; do \
-		make -C $$dir distclean;\
-	done;
+# TODO: a global memory ring buffer stdout based printf
+LKERNEL_SRCS_EXCLUDE = printf.c barrier.ll
+LKERNEL_SRCS_EXTRA = barrier.c
+
+EXTRA_DIST = CMakeLists.txt
