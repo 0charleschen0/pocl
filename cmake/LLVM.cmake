@@ -145,6 +145,8 @@ if(LLVM_VERSION MATCHES "3[.]([0-9]+)")
     set(LLVM_3_5 1)
   elseif(LLVM_MINOR STREQUAL "6")
     set(LLVM_3_6 1)
+  elseif(LLVM_MINOR STREQUAL "7")
+    set(LLVM_3_7 1)
   else()
     message(FATAL_ERROR "Unknown/unsupported minor llvm version: ${LLVM_MINOR}")
   endif()
@@ -573,11 +575,7 @@ endif()
 
 set_cache_var(LLC_TRIPLE "LLC_TRIPLE")
 
-
-
-setup_cache_var_name(LLC_HOST_CPU "LLC_HOST_CPU-${LLVM_HOST_TARGET}-${LLC}")
-
-if(NOT DEFINED ${CACHE_VAR_NAME} AND NOT CMAKE_CROSSCOMPILING)
+if(NOT DEFINED LLC_HOST_CPU AND NOT CMAKE_CROSSCOMPILING)
   message(STATUS "Find out LLC host CPU with ${LLC}")
   execute_process(COMMAND ${LLC} "--version" RESULT_VARIABLE RES_VAR OUTPUT_VARIABLE OUTPUT_VAR)
   # WTF, ^^ has return value 1
@@ -596,10 +594,9 @@ if(NOT DEFINED ${CACHE_VAR_NAME} AND NOT CMAKE_CROSSCOMPILING)
   if(CMAKE_LIBRARY_ARCHITECTURE MATCHES "gnueabihf" AND LLC_HOST_CPU MATCHES "arm1176jz-s")
     set(LLC_HOST_CPU "arm1176jzf-s")
   endif()
-
 endif()
 
-set_cache_var(LLC_HOST_CPU "LLC_HOST_CPU")
+set(LLC_HOST_CPU "${LLC_HOST_CPU}" CACHE STRING "The Host CPU to use with llc")
 
 ####################################################################
 #X86 has -march and -mcpu reversed, for clang
@@ -650,9 +647,7 @@ set_cache_var(CL_DISABLE_LONG "Disable cl_khr_int64 because of buggy llvm")
 
 ####################################################################
 
-setup_cache_var_name(CL_DISABLE_HALF "CL_DISABLE_HALF-${LLVM_HOST_TARGET}-${CLANG}")
-
-if(NOT DEFINED ${CACHE_VAR_NAME})
+if(NOT DEFINED ${CL_DISABLE_HALF})
   set(CL_DISABLE_HALF 0)
   # TODO -march=CPU flags !
   custom_try_compile_c_cxx("${CLANG}" "c" "__fp16 callfp16(__fp16 a) { return a * (__fp16)1.8; };" "__fp16 x=callfp16((__fp16)argc);" RESV -c ${CLANG_TARGET_OPTION}${LLC_TRIPLE} ${CLANG_MARCH_FLAG}${LLC_HOST_CPU})
@@ -661,4 +656,4 @@ if(NOT DEFINED ${CACHE_VAR_NAME})
   endif()
 endif()
 
-set_cache_var(CL_DISABLE_HALF "Disable cl_khr_fp16 because fp16 is not supported")
+set(CL_DISABLE_HALF "${CL_DISABLE_HALF}" CACHE BOOL "Disable cl_khr_fp16 because fp16 is not supported")
