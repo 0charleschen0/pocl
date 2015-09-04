@@ -113,6 +113,13 @@ run_llvm_config(LLVM_OBJ_ROOT --obj-root)
 string(REPLACE "${LLVM_PREFIX}" "${LLVM_PREFIX_CMAKE}" LLVM_OBJ_ROOT "${LLVM_OBJ_ROOT}")
 run_llvm_config(LLVM_ALL_TARGETS --targets-built)
 run_llvm_config(LLVM_HOST_TARGET --host-target)
+# TODO can be changed to --assertion-mode once we drop LLVM < 3.5 support
+run_llvm_config(LLVM_BUILD_MODE --build-mode)
+if(LLVM_BUILD_MODE MATCHES "Asserts")
+  set(LLVM_ASSERTS_BUILD 1)
+else()
+  set(LLVM_ASSERTS_BUILD 0)
+endif()
 # Ubuntu's llvm reports "arm-unknown-linux-gnueabihf" triple, then if one tries
 # `clang --target=arm-unknown-linux-gnueabihf ...` it will produce armv6 code,
 # even if one's running armv7;
@@ -261,8 +268,8 @@ macro(custom_try_compile_any COMPILER SUFFIX SOURCE RES_VAR)
   execute_process(COMMAND "${COMPILER}" ${ARGN} "${RANDOM_FILENAME}" RESULT_VARIABLE ${RES_VAR} OUTPUT_VARIABLE OV ERROR_VARIABLE EV)
   if(${${RES_VAR}})
     message(STATUS " ########## The command: ")
-    message(STATUS "${COMPILER} ${ARGN} ${RANDOM_FILENAME}")
-    message(STATUS " ########## ARGN size: ${LSIZE}")
+    string(REPLACE ";" " " ARGN_STR "${ARGN}")
+    message(STATUS "${COMPILER} ${ARGN_STR} ${RANDOM_FILENAME}")
     message(STATUS " ########## Exited with nonzero status: ${${RES_VAR}}")
     if(OV)
       message(STATUS "STDOUT: ${OV}")
@@ -499,10 +506,10 @@ endif()
 
 if(NOT LLVM_CXXFLAGS MATCHES "-DNDEBUG")
 
-  message(STATUS "Checking if LLVM is built with assertions")
+  message(STATUS "Checking if LLVM is a DEBUG build")
   separate_arguments(_FLAGS UNIX_COMMAND "${LLVM_CXXFLAGS}")
 
-  set(_TEST_SOURCE "${CMAKE_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/llvmbuiltwithassertions.cc")
+  set(_TEST_SOURCE "${CMAKE_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/llvmNDEBUG.cc")
   file(WRITE "${_TEST_SOURCE}"
     "
       #include <llvm/Support/Debug.h>
@@ -525,9 +532,9 @@ if(NOT LLVM_CXXFLAGS MATCHES "-DNDEBUG")
     "Test -NDEBUG flag: ${_TRY_COMPILE_OUTPUT}\n")
 
   if(_TRY_SUCCESS)
-    message(STATUS "assertions present")
+    message(STATUS "DEBUG build")
   else()
-    message(STATUS "no assertions.. adding -DNDEBUG")
+    message(STATUS "Not a DEBUG build, adding -DNDEBUG explicitly")
     set(LLVM_CXXFLAGS "${LLVM_CXXFLAGS} -DNDEBUG")
   endif()
 
@@ -657,3 +664,26 @@ if(NOT DEFINED ${CL_DISABLE_HALF})
 endif()
 
 set(CL_DISABLE_HALF "${CL_DISABLE_HALF}" CACHE BOOL "Disable cl_khr_fp16 because fp16 is not supported")
+
+####################################################################
+
+if(ENABLE_HSA)
+
+  message(STATUS "Trying HSA support")
+  # test that Clang supports the amdgcn--amdhsa target
+  custom_try_compile_clangxx("" "return 0;" RESULT "-target" "amdgcn--amdhsa" "-emit-llvm" "-S")
+  if(RESULT)
+    message(FATAL_ERROR "LLVM support for amdgcn--amdhsa target is required")
+  endif()
+
+  # try the headers
+  if(NOT DEFINED WITH_HSA_HEADERS)
+    find_path(WITH_HSA_HEADERS "hsa.h")
+    if(NOT WITH_HSA_HEADERS)
+      message(FATAL_ERROR "HSA runtime headers not found, use -DWITH_HSA_HEADERS")
+    endif()
+  endif()
+
+endif()
+
+#####################################################################
