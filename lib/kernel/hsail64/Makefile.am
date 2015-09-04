@@ -31,7 +31,8 @@ include ../rules.mk
 include ../sources.mk
 
 # TODO: a global memory ring buffer stdout based printf
-LKERNEL_SRCS_EXCLUDE = printf.c barrier.ll
-LKERNEL_SRCS_EXTRA = barrier.c
+LKERNEL_SRCS_EXCLUDE = printf.c barrier.ll get_global_id.c get_group_id.c get_local_id.c get_local_size.c
+LKERNEL_SRCS_EXTRA = $(addprefix hsail64/, barrier.c get_global_id.c \ 
+                   get_group_id.c get_local_id.c get_local_size.c)
 
 EXTRA_DIST = CMakeLists.txt
